@@ -2,6 +2,7 @@
 Created on Jun 9, 2012
 
 @author: akittredge
+
 '''
 import urllib2
 import BeautifulSoup
@@ -11,14 +12,22 @@ import datetime
 import struct
 import fcntl
 import termios
+import argparse
 
+description = '''Parse the html of a magicseaweed surf report page, write a summary
+and an ascii-graph of the surf-height forcast.
 
-def ms_soup(ms_page):
+'''
+
+def url_soup(url):
     headers = {'User-Agent' : 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_7_4) AppleWebKit/536.5 (KHTML, like Gecko) Chrome/19.0.1084.54 Safari/536.5'}
-    #req = urllib2.Request(url='http://magicseaweed.com/%s' % ms_page, 
-                          #headers=headers)
-    #page_soup = BeautifulSoup.BeautifulSoup(urllib2.urlopen(req).read())
-    page_soup = BeautifulSoup.BeautifulSoup(open('/tmp/mg_seaweed_test_page').read())
+    
+    req = urllib2.Request(url, headers=headers)
+    content = urllib2.urlopen(req).read()
+
+    page_soup = BeautifulSoup.BeautifulSoup(content)
+
+    #page_soup = BeautifulSoup.BeautifulSoup(open('/tmp/mg_seaweed_test_page').read())
     return page_soup
 
 def terminal_width():
@@ -68,12 +77,25 @@ def parse_and_print(page_soup):
     for time_label_row in range(len(max(time_labels))):
         print ''.join(time_col_template % time_label[time_label_row] for 
                       time_label in time_labels)
-        
-        
+
 def main():
-    test_page = 'Matunuck-Surf-Report/377/'
-    page_soup = ms_soup(test_page)
-    parse_and_print(page_soup)
+    parser = argparse.ArgumentParser(description=description)
+    parser.add_argument('-p', '--magic-seaweed-page', dest='ms_page', required=True,
+                        help='magicseaweed surfreport page ie. "Longport-32nd-St.-Surf-Report/1158/"')
+    args = parser.parse_args()
     
+    ms_url = 'http://magicseaweed.com/%s' % args.ms_page
+    try:
+        page_soup = url_soup(ms_url)
+    except urllib2.HTTPError:
+        sys.stderr.write('Error getting %s\n' % ms_url)
+        return 1
+    try:
+        parse_and_print(page_soup)
+    except AttributeError:
+        sys.stderr.write('Error parsing %s, make sure it is a surf report page.\n' % ms_url)
+        return 1
+    
+    return 0
 if __name__ == '__main__':
     sys.exit(main())
